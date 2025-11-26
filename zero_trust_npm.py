@@ -3,6 +3,12 @@ import json
 import requests
 import sys
 import pyfiglet
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.text import Text
+
+console = Console()
 
 OSV_API_URL = "https://api.osv.dev/v1/querybatch"
 
@@ -65,7 +71,7 @@ def load_lockfile(lockfile_path):
                     
         return packages
     except Exception as e:
-        print(f"Error loading lockfile {lockfile_path}: {e}")
+        console.print(f"Error loading lockfile {lockfile_path}: {e}", style="red")
         return []
 
 def scan_node_modules(project_dir):
@@ -137,7 +143,7 @@ def load_package_json(manifest_path):
         
         return packages
     except Exception as e:
-        print(f"Error loading package.json {manifest_path}: {e}")
+        console.print(f"Error loading package.json {manifest_path}: {e}", style="red")
         return []
 
 def check_vulnerabilities(packages):
@@ -162,7 +168,7 @@ def check_vulnerabilities(packages):
     response = requests.post(OSV_API_URL, json={"queries": queries})
     
     if response.status_code != 200:
-        print(f"Error querying OSV API: {response.status_code}")
+        console.print(f"Error querying OSV API: {response.status_code}", style="bold red")
         return {}
         
     results = response.json().get('results', [])
@@ -177,7 +183,7 @@ def check_vulnerabilities(packages):
     return vulnerabilities
 
 def scan_project(project_path):
-    print(f"\nScanning Project: {project_path}")
+    console.print(f"\nScanning Project: [bold]{project_path}[/bold]", style="underline")
     
     lockfile_path = os.path.join(project_path, 'package-lock.json')
     node_modules_path = os.path.join(project_path, 'node_modules')
@@ -187,54 +193,62 @@ def scan_project(project_path):
     method = ""
     
     if os.path.exists(lockfile_path):
-        print("  Found package-lock.json. Using exact versions.")
+        console.print("  Found package-lock.json. Using exact versions.", style="green")
         packages = load_lockfile(lockfile_path)
         method = "lockfile"
     elif os.path.exists(node_modules_path):
-        print("  No lockfile. Scanning node_modules for installed versions.")
+        console.print("  No lockfile. Scanning node_modules for installed versions.", style="yellow")
         packages = scan_node_modules(project_path)
         method = "node_modules"
     elif os.path.exists(package_json_path):
-        print("  No lockfile or node_modules. Using package.json (approximate versions).")
+        console.print("  No lockfile or node_modules. Using package.json (approximate versions).", style="yellow")
         packages = load_package_json(package_json_path)
         method = "manifest"
     else:
-        print("  No dependency information found.")
+        console.print("  No dependency information found.", style="red")
         return
 
-    print(f"  Found {len(packages)} packages.")
+    console.print(f"  Found {len(packages)} packages.", style="bold blue")
     
     # Feature C: Typosquatting Detection
-    print("  [Phase 2] Checking for Typosquatting...")
+    console.print("  [Phase 2] Checking for Typosquatting...", style="dim")
     typo_issues = check_typosquatting(packages)
     if typo_issues:
-        print(f"  [!] Found {len(typo_issues)} potential typosquatting attempts:")
+        console.print(f"  [!] Found {len(typo_issues)} potential typosquatting attempts:", style="bold red")
         for issue in typo_issues:
-            print(f"    - {issue}")
+            console.print(f"    - {issue}", style="red")
     else:
-        print("  [+] Typosquatting checks passed.")
+        console.print("  [+] Typosquatting checks passed.", style="green")
 
     # Feature A, B, D: Remote Checks (Integrity, Forensics, Scripts)
-    print("  [Phase 2] Performing Remote Checks (Integrity, Forensics, Scripts)...")
+    console.print("  [Phase 2] Performing Remote Checks (Integrity, Forensics, Scripts)...", style="dim")
     remote_issues = check_remote_metadata(packages, method)
     if remote_issues:
-        print(f"  [!] Found {len(remote_issues)} issues from remote checks:")
+        console.print(f"  [!] Found {len(remote_issues)} issues from remote checks:", style="bold red")
         for issue in remote_issues:
-            print(f"    - {issue}")
+            console.print(f"    - {issue}", style="red")
     else:
-        print("  [+] Remote checks passed.")
+        console.print("  [+] Remote checks passed.", style="green")
 
     vulns = check_vulnerabilities(packages)
     
     if vulns:
-        print(f"  [!] Found {len(vulns)} vulnerable packages:")
+        console.print(f"  [!] Found {len(vulns)} vulnerable packages:", style="bold red")
+        
+        table = Table(title="Vulnerabilities Found", show_header=True, header_style="bold magenta")
+        table.add_column("Package", style="cyan")
+        table.add_column("Version", style="green")
+        table.add_column("ID", style="yellow")
+        table.add_column("Summary", style="white")
+
         for pkg_ver, vuln_list in vulns.items():
-            print(f"    - {pkg_ver}:")
+            name, version = pkg_ver.split('@')
             for v in vuln_list:
-                print(f"      ID: {v['id']}")
-                print(f"      Summary: {v.get('summary', 'No summary')}")
+                table.add_row(name, version, v['id'], v.get('summary', 'No summary'))
+        
+        console.print(table)
     else:
-        print("  [+] No known vulnerabilities found.")
+        console.print("  [+] No known vulnerabilities found.", style="bold green")
 
 TOP_50_PACKAGES = [
     "react", "react-dom", "lodash", "express", "chalk", "commander", "debug", "tslib", "requests", "moment",
@@ -251,7 +265,7 @@ def check_typosquatting(packages):
     try:
         import jellyfish
     except ImportError:
-        print("  [!] jellyfish library not found. Skipping typosquatting check.")
+        console.print("  [!] jellyfish library not found. Skipping typosquatting check.", style="bold yellow")
         return []
 
     issues = []
@@ -354,13 +368,13 @@ def main():
         root = sys.argv[1]
         
     ascii_banner = pyfiglet.figlet_format("ZeroTrustNPM")
-    print(ascii_banner)
-    print(f"Starting ZeroTrustNPM Scanner in: {os.path.abspath(root)}")
+    console.print(Text(ascii_banner, style="bold magenta"))
+    console.print(Panel(f"Starting ZeroTrustNPM Scanner in: [bold]{os.path.abspath(root)}[/bold]", title="Scanner Info", border_style="blue"))
     
     projects = list(find_projects(root))
     
     if not projects:
-        print("No NPM projects found.")
+        console.print("No NPM projects found.", style="bold red")
         return
 
     for proj in projects:
