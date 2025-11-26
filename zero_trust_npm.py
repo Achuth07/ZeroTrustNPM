@@ -2,6 +2,7 @@ import os
 import json
 import requests
 import sys
+import pyfiglet
 
 OSV_API_URL = "https://api.osv.dev/v1/querybatch"
 
@@ -352,6 +353,8 @@ def main():
     else:
         root = sys.argv[1]
         
+    ascii_banner = pyfiglet.figlet_format("ZeroTrustNPM")
+    print(ascii_banner)
     print(f"Starting ZeroTrustNPM Scanner in: {os.path.abspath(root)}")
     
     projects = list(find_projects(root))
