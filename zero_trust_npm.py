@@ -182,6 +182,23 @@ def check_vulnerabilities(packages):
             
     return vulnerabilities
 
+def fetch_vulnerability_details(vuln_id):
+    """
+    Fetches full vulnerability details from OSV API for a given vulnerability ID.
+    Returns the full vulnerability object with summary, details, etc.
+    """
+    try:
+        url = f"https://api.osv.dev/v1/vulns/{vuln_id}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return None
+    except Exception as e:
+        console.print(f"[!] Error fetching details for {vuln_id}: {e}", style="dim red")
+        return None
+
+
 def scan_project(project_path):
     console.print(f"\nScanning Project: [bold]{project_path}[/bold]", style="underline")
     
@@ -244,7 +261,24 @@ def scan_project(project_path):
         for pkg_ver, vuln_list in vulns.items():
             name, version = pkg_ver.split('@')
             for v in vuln_list:
-                table.add_row(name, version, v['id'], v.get('summary', 'No summary'))
+                vuln_id = v['id']
+                
+                # Fetch full vulnerability details
+                vuln_details = fetch_vulnerability_details(vuln_id)
+                
+                if vuln_details:
+                    summary = vuln_details.get('summary')
+                    if not summary:
+                        # Try database_specific.severity or details
+                        summary = vuln_details.get('details', 'No summary')
+                        # Truncate long details
+                        if len(summary) > 100:
+                            summary = summary[:97] + "..."
+                else:
+                    summary = 'No summary'
+                
+                table.add_row(name, version, vuln_id, summary)
+
         
         console.print(table)
     else:

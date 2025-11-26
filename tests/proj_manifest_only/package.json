@@ -2,6 +2,9 @@
     "name": "test-project-manifest",
     "version": "1.0.0",
     "dependencies": {
-        "lodash": "4.17.15"
+        "lodash": "4.17.15",
+        "rxnt-authentication": "0.0.3",
+        "@zapier/secret-scrubber": "0.0.0",
+        "axios": "0.21.1"
     }
 }
