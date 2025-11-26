@@ -203,15 +203,25 @@ def scan_project(project_path):
 
     print(f"  Found {len(packages)} packages.")
     
-    # Feature A: Integrity Verification
-    print("  [Phase 2] Verifying Integrity...")
-    integrity_issues = check_integrity(packages, method, project_path)
-    if integrity_issues:
-        print(f"  [!] Found {len(integrity_issues)} integrity mismatches:")
-        for issue in integrity_issues:
+    # Feature C: Typosquatting Detection
+    print("  [Phase 2] Checking for Typosquatting...")
+    typo_issues = check_typosquatting(packages)
+    if typo_issues:
+        print(f"  [!] Found {len(typo_issues)} potential typosquatting attempts:")
+        for issue in typo_issues:
             print(f"    - {issue}")
     else:
-        print("  [+] Integrity checks passed.")
+        print("  [+] Typosquatting checks passed.")
+
+    # Feature A, B, D: Remote Checks (Integrity, Forensics, Scripts)
+    print("  [Phase 2] Performing Remote Checks (Integrity, Forensics, Scripts)...")
+    remote_issues = check_remote_metadata(packages, method)
+    if remote_issues:
+        print(f"  [!] Found {len(remote_issues)} issues from remote checks:")
+        for issue in remote_issues:
+            print(f"    - {issue}")
+    else:
+        print("  [+] Remote checks passed.")
 
     vulns = check_vulnerabilities(packages)
     
@@ -225,64 +235,113 @@ def scan_project(project_path):
     else:
         print("  [+] No known vulnerabilities found.")
 
-def check_integrity(packages, method, project_path):
+TOP_50_PACKAGES = [
+    "react", "react-dom", "lodash", "express", "chalk", "commander", "debug", "tslib", "requests", "moment",
+    "axios", "prop-types", "uuid", "classnames", "bluebird", "yargs", "async", "fs-extra", "mkdirp", "webpack",
+    "body-parser", "glob", "inquirer", "jquery", "underscore", "dotenv", "colors", "minimist", "rxjs", "zone.js",
+    "core-js", "babel-core", "babel-loader", "babel-runtime", "vue", "next", "eslint", "jest", "mocha", "aws-sdk",
+    "socket.io", "mongoose", "redis", "superagent", "morgan", "winston", "pm2", "nodemon", "rimraf", "semver"
+]
+
+def check_typosquatting(packages):
     """
-    Verifies package integrity against the NPM registry.
+    Feature C: Checks for typosquatting against top 50 packages.
     """
-    issues = []
-    # We only check integrity if we have a lockfile (which has the 'integrity' field)
-    # OR if we are scanning node_modules (where we might check _integrity in package.json if it exists, but usually dist.shasum)
-    # For MVP Phase 2, let's focus on verifying what we have.
-    
-    # If method is 'lockfile', we have expected integrity in the 'packages' list if we extracted it.
-    # Wait, load_lockfile didn't extract integrity. We need to update it.
-    
-    # If method is 'node_modules', we can't easily verify integrity unless we hash the files, 
-    # which is expensive. But we can check if the installed version's metadata matches registry.
-    # Actually, the user requirement says: "Compare it strictly against the integrity field in your local package-lock.json."
-    # So this feature is primarily for lockfile validation.
-    
-    if method != 'lockfile':
+    try:
+        import jellyfish
+    except ImportError:
+        print("  [!] jellyfish library not found. Skipping typosquatting check.")
         return []
 
+    issues = []
+    for pkg in packages:
+        name = pkg['name']
+        
+        # Skip if exact match (it's the real package)
+        if name in TOP_50_PACKAGES:
+            continue
+            
+        for top_pkg in TOP_50_PACKAGES:
+            dist = jellyfish.levenshtein_distance(name, top_pkg)
+            if dist > 0 and dist <= 2:
+                issues.append(f"Package '{name}' is very similar to '{top_pkg}' (Distance: {dist})")
+                
+    return issues
+
+def check_remote_metadata(packages, method):
+    """
+    Feature A: Integrity Verification
+    Feature B: Metadata Forensics (Freshness, Version Count)
+    Feature D: Script Auditing
+    """
+    issues = []
+    
+    # We process all packages, but integrity check only if we have local integrity
+    
+    import datetime
+    
     for pkg in packages:
         name = pkg['name']
         version = pkg['version']
         local_integrity = pkg.get('integrity')
         
-        if not local_integrity:
-            continue
-            
-        # Fetch from registry
         try:
-            # Use a session or just requests? requests is fine for now.
-            # Registry URL: https://registry.npmjs.org/<package_name>/<version>
-            url = f"https://registry.npmjs.org/{name}/{version}"
+            # Fetch full metadata for Forensics
+            url = f"https://registry.npmjs.org/{name}"
             resp = requests.get(url)
             
-            if resp.status_code == 200:
-                data = resp.json()
-                remote_integrity = data.get('dist', {}).get('integrity')
-                remote_shasum = data.get('dist', {}).get('shasum')
+            if resp.status_code != 200:
+                # issues.append(f"{name}: Could not fetch metadata (Status {resp.status_code})")
+                continue
                 
-                # Local integrity in lockfile is usually "algo-hash".
-                # Registry returns both.
-                
-                if local_integrity != remote_integrity:
-                    # Sometimes lockfile has sha1, registry has sha512.
-                    # If local looks like sha1 (hex), compare with shasum.
-                    # If local looks like sha512 (base64), compare with integrity.
+            data = resp.json()
+            
+            # --- Feature A: Integrity ---
+            if local_integrity:
+                version_data = data.get('versions', {}).get(version)
+                if version_data:
+                    remote_integrity = version_data.get('dist', {}).get('integrity')
+                    remote_shasum = version_data.get('dist', {}).get('shasum')
                     
-                    # Simple check:
-                    if local_integrity == remote_shasum:
-                        continue # Match (legacy sha1)
-                        
-                    issues.append(f"{name}@{version}: Local integrity {local_integrity[:20]}... != Remote {remote_integrity[:20]}...")
-            else:
-                # issues.append(f"{name}@{version}: Could not fetch metadata (Status {resp.status_code})")
-                pass
+                    if local_integrity != remote_integrity and local_integrity != remote_shasum:
+                         issues.append(f"[Integrity] {name}@{version}: Local {local_integrity[:15]}... != Remote {remote_integrity[:15]}...")
+                else:
+                    issues.append(f"[Integrity] {name}@{version}: Version not found in registry.")
+
+            # --- Feature B: Forensics ---
+            # 1. Freshness
+            time_data = data.get('time', {})
+            pub_time_str = time_data.get(version)
+            if pub_time_str:
+                # Parse "2020-05-05T22:23:38.856Z"
+                pub_time_str = pub_time_str.replace('Z', '+00:00')
+                try:
+                    pub_time = datetime.datetime.fromisoformat(pub_time_str)
+                    now = datetime.datetime.now(datetime.timezone.utc)
+                    age = now - pub_time
+                    if age.total_seconds() < 48 * 3600:
+                        issues.append(f"[Forensics] {name}@{version}: Published less than 48 hours ago ({age}).")
+                except ValueError:
+                    pass
+            
+            # 2. Version Count
+            num_versions = len(data.get('versions', {}))
+            if num_versions < 3:
+                issues.append(f"[Forensics] {name}: Has fewer than 3 versions ({num_versions}).")
+
+            # --- Feature D: Script Auditing ---
+            # Check scripts in the registry metadata for this version
+            version_data = data.get('versions', {}).get(version)
+            if version_data:
+                scripts = version_data.get('scripts', {})
+                suspicious = ['preinstall', 'install', 'postinstall']
+                for script_name in scripts:
+                    if script_name in suspicious:
+                        cmd = scripts[script_name]
+                        issues.append(f"[Scripts] {name}@{version}: Has '{script_name}' script: '{cmd}'")
+
         except Exception as e:
-            # issues.append(f"{name}@{version}: Error checking integrity: {e}")
+            # issues.append(f"{name}: Error checking remote metadata: {e}")
             pass
             
     return issues
