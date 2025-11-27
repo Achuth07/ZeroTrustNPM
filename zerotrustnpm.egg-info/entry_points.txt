@@ -1,0 +1,2 @@
+[console_scripts]
+zero-trust-npm = zerotrustnpm.cli:main

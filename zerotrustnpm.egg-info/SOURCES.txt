@@ -1,0 +1,15 @@
+LICENSE
+README.md
+pyproject.toml
+zerotrustnpm/__init__.py
+zerotrustnpm/__main__.py
+zerotrustnpm/checks.py
+zerotrustnpm/cli.py
+zerotrustnpm/scanner.py
+zerotrustnpm/utils.py
+zerotrustnpm.egg-info/PKG-INFO
+zerotrustnpm.egg-info/SOURCES.txt
+zerotrustnpm.egg-info/dependency_links.txt
+zerotrustnpm.egg-info/entry_points.txt
+zerotrustnpm.egg-info/requires.txt
+zerotrustnpm.egg-info/top_level.txt
