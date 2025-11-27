@@ -228,7 +228,7 @@ def scan_project(project_path):
     console.print(f"  Found {len(packages)} packages.", style="bold blue")
     
     # Feature C: Typosquatting Detection
-    console.print("  [Phase 2] Checking for Typosquatting...", style="dim")
+    console.print("  Checking for Typosquatting...", style="dim")
     typo_issues = check_typosquatting(packages)
     if typo_issues:
         console.print(f"  [!] Found {len(typo_issues)} potential typosquatting attempts:", style="bold red")
@@ -238,7 +238,7 @@ def scan_project(project_path):
         console.print("  [+] Typosquatting checks passed.", style="green")
 
     # Feature A, B, D: Remote Checks (Integrity, Forensics, Scripts)
-    console.print("  [Phase 2] Performing Remote Checks (Integrity, Forensics, Scripts)...", style="dim")
+    console.print("  Performing Remote Checks (Integrity, Forensics, Scripts)...", style="dim")
     remote_issues = check_remote_metadata(packages, method)
     if remote_issues:
         console.print(f"  [!] Found {len(remote_issues)} issues from remote checks:", style="bold red")
