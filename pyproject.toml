@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "A Zero Trust Security Scanner for NPM Projects"
 readme = "README.md"
 authors = [
-  { name="Achuth Chandra", email="achuth@example.com" },
+  { name="Achuth Chandra", email="achuthumd@gmail.com" },
 ]
 license = { file="LICENSE" }
 classifiers = [
