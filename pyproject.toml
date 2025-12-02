@@ -2,6 +2,11 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["zerotrustnpm*"]
+exclude = ["assets*", "tests*", "venv*"]
+
 [project]
 name = "zerotrustnpm"
 version = "0.1.0"

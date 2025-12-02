@@ -1,5 +1,7 @@
 # ZeroTrustNPM
 
+[![PyPI version](https://badge.fury.io/py/zerotrustnpm.svg)](https://badge.fury.io/py/zerotrustnpm)
+
 **ZeroTrustNPM** is an open-source Python-based security scanner for NPM implementing a Zero Trust philosophy. Detects supply chain attacks, typo-squatting, and integrity anomalies beyond standard CVEs. Verify every package, trust no module.
 
 ![ZeroTrustNPM Demo](assets/ZeroTrustNPM_demo.gif)
@@ -14,7 +16,13 @@
 
 ## Installation
 
-You can install ZeroTrustNPM directly from source:
+You can install ZeroTrustNPM directly from PyPI:
+
+```bash
+pip install zerotrustnpm
+```
+
+Or install from source:
 
 ```bash
 git clone https://github.com/Achuth07/ZeroTrustNPM.git

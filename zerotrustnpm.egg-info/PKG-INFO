@@ -2,7 +2,7 @@ Metadata-Version: 2.4
 Name: zerotrustnpm
 Version: 0.1.0
 Summary: A Zero Trust Security Scanner for NPM Projects
-Author-email: Achuth Chandra <achuth@example.com>
+Author-email: Achuth Chandra <achuthumd@gmail.com>
 License: MIT License
         
         Copyright (c) 2025 Achuth Chandra
@@ -42,6 +42,8 @@ Dynamic: license-file
 # ZeroTrustNPM
 
 **ZeroTrustNPM** is an open-source Python-based security scanner for NPM implementing a Zero Trust philosophy. Detects supply chain attacks, typo-squatting, and integrity anomalies beyond standard CVEs. Verify every package, trust no module.
+
+![ZeroTrustNPM Demo](assets/ZeroTrustNPM_demo.gif)
 
 ## Features
 
